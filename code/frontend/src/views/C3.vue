@@ -31,7 +31,8 @@ export default class C3 extends Vue {
     utils.reorderMatrix(this.radio)
   }
   mounted() {
-    d3.json('./data/HKUST_coauthor_graph.json').then((data: unknown) => {utils.init(data, 'graph')})
+    d3.json('./data/HKUST_coauthor_graph.json')
+      .then((data: unknown) => {utils.init(data, 'graph')})
     // d3.json('data/graph.json').then((data: any) => {utils.init(data, 'graph')}) // for development only
   }
 }

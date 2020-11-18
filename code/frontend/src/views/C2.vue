@@ -27,7 +27,8 @@ export default class C2 extends Vue {
     utils.changeMode()
   }
   mounted (): void {
-    d3.csv('./data/temperature_daily.csv').then((data: any) => utils.init(data, 'heatmap'))
+    d3.csv('./data/temperature_daily.csv')
+      .then((data: any) => utils.init(data, 'heatmap'))
   }
 }
 </script>

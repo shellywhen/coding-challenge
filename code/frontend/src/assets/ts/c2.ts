@@ -1,13 +1,19 @@
 /* eslint-disable */
+
+/**
+ * This is the doc comment for c2.ts
+ * It supports to plot small multiples inside the heatmap for HK temerature records.
+ * @packageDocumentation
+ */
+
 import * as d3 from "d3"
 import $ from 'jquery'
-import {Cell} from './types'
+import { Cell } from './types'
 
 enum Mode {
   maximum,
   minimum
 }
-
 let mode: Mode = Mode.maximum
 let width: any = 800
 let height: any = 300
@@ -17,7 +23,7 @@ let yScale: any
 let colorScale_max: any
 let colorScale_min: any
 let colorScale: any
-const legendRatio = 12/14
+const legendRatio = 12/14  // the height ratio of the legend and the chart
 const declaredWidth = '95vw'
 const declaredHeight = '80vh'
 const leftWidthPadding = 0.07
@@ -28,7 +34,7 @@ const xPaddingInner = 0.08
 const yPaddingOuter = 0.02
 const yPaddingInner = 0.1
 const bandAlign = 1 // align right
-const barRadius = 0.08
+const barRadius = 0.08 // radius of the heatmap bar
 const barRadiusMin = 2
 const colorScheme = 'interpolatePlasma'
 const monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -120,11 +126,11 @@ let setupScale = function () {
     return d3[colorScheme](t)
   }
   colorScale_min = function(x: number) {
-    let t = (x - min_min_t)/(max_min_t - min_min_t)
+    let t = (x - min_min_t) / (max_min_t - min_min_t)
     return d3[colorScheme](t)
   }
   colorScale = function(x: number) {
-    let t = (x - min_min_t)/(max_max_t - min_min_t)
+    let t = (x - min_min_t) / (max_max_t - min_min_t)
     return d3[colorScheme](t)
   }
 }
@@ -167,7 +173,7 @@ legendCanvas.append('text')
   .classed('tick-text', true)
   .style('font-size', '0.8rem')
   .style('text-anchor', 'start')
-  .attr('y', cxScale.bandwidth()/2 + 4)
+  .attr('y', cxScale.bandwidth() / 2 + 4)
   .text('Temperature (℃)')
 }
 
@@ -194,7 +200,7 @@ let fillBar = (d: Cell) =>  mode === Mode.maximum ? colorScale_max(d.maximum) : 
 
 let getXpos = (x: number) => x < window.innerWidth / 4 * 3 ? x+15 : x - window.innerWidth * 0.2
 
-let showTooltip = function(e: MouseEvent, d: Cell) {
+let showTooltip = function(this: SVGRectElement, e: MouseEvent, d: Cell) {
   let tooltip = d3.select('#c2').select('.tooltip')
     .style('visibility', 'visible')
     .html(`Time: ${d.year}-${String(d.month + 1).padStart(2, '0')} &nbsp;&nbsp;  max: ${d.maximum} &nbsp;&nbsp;  min: ${d.minimum} `)
@@ -204,19 +210,19 @@ let showTooltip = function(e: MouseEvent, d: Cell) {
     .style('stroke-width', 2)
 }
 
-let fadeTooltip = function() {
+let fadeTooltip = function(this: SVGRectElement) {
   d3.select('#c2').select('.tooltip')
     .style('visibility', 'hidden')
   d3.select(this)
     .style('stroke-width', 0)
 }
 
-let plotBars = function (canvas:any, data:any) {
+let plotBars = function (canvas: any, data: any) {
   let bars = canvas.append('g')
     .classed('bar-wrapper', true)
     .attr('transform', function() {
-      let xLeftPadding = xScale.step()*bandAlign*xScale.paddingOuter()
-      let yTopPadding = yScale.step()*bandAlign*yScale.paddingOuter()
+      let xLeftPadding = xScale.step() * bandAlign * xScale.paddingOuter()
+      let yTopPadding = yScale.step() * bandAlign * yScale.paddingOuter()
       return `translate(${xLeftPadding}, ${yTopPadding})`
     })
     .selectAll('g')
@@ -251,23 +257,22 @@ let plotBars = function (canvas:any, data:any) {
     .domain([min_min_t, max_max_t])
     .range([yScale.bandwidth(), 0])
   let lineGenerator = d3.line()
-    .x((d: any, i:number) => minixScale(i))
-    .y((d: any) => miniyScale(d))
+    .x((d: number[]) => d[0])
+    .y((d: number[]) => d[1])
   bars.append('path')
-    .attr('d', (d: Cell) => lineGenerator(d.minlist))
+    .attr('d', (d: Cell) => lineGenerator(d.minlist!.map((d: number, i: number) => [minixScale(i), miniyScale(d)])))
     .style('stroke', '#ededed')
     .style('fill', 'none')
   bars.append('path')
-    .attr('d', (d: Cell) => lineGenerator(d.maxlist))
+    .attr('d', (d: Cell) => lineGenerator(d.maxlist!.map((d: number, i: number) => [minixScale(i), miniyScale(d)])))
     .style('stroke', '#018026')
     .style('fill', 'none')
-
 }
 
 /**
  * Initialize the canvas and data.
- * @param {unknown} obj the parsed data from csv, a list of objects
- * @param {string} svgid the id of the svg element
+ * @param obj the parsed data from csv, a list of objects
+ * @param svgid the id of the svg element
  */
 export let init = function (obj: any, svgid: string) {
   let bars = dataPreprocessing(obj)
@@ -282,6 +287,7 @@ export let init = function (obj: any, svgid: string) {
  * Switch the view of min_temperture and max_temperature.
  */
 export let changeMode = function () {
+  if (!canvas) return
   mode = mode === Mode.minimum? Mode.maximum : Mode.minimum
   d3.selectAll('.bar')
     .style('fill', fillBar)

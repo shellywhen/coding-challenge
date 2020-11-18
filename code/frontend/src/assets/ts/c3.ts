@@ -1,34 +1,40 @@
 /* eslint-disable */
+
+/**
+ * This is the doc comment for c3.ts
+ * It supports to plot both nodelink diagram and matrix for the intended data.
+ * @packageDocumentation
+ */
+
 import * as d3 from 'd3'
 import $ from 'jquery'
 import * as nl from './graphUtils'
 import { Node, Link, MatrixCell, Graph } from './types'
-let info: any = {
-  idMap: new Map(),
-  order: {
-    degree: [],
-    normal: [],
-    fullname: [],
-    collaborator:[]
-  },
-}
 
 const LABEL_FONT_SIZE = 7.2
 const DURATION =  2000
 const DELAY = 50
 const EASE = d3.easePolyInOut.exponent(3)
 const mtPaddingRatio = 0.2
-
+let info: any = {
+  idMap: new Map(), // mapping the node id to its order in the node list
+  order: {          // the order of the node list under different criteria
+    degree: [],       // #publications in the subgraph
+    normal: [],       // order in the original dataset
+    fullname: [],     // full name (a -> z)
+    collaborator:[]   // #collaborators in the subgraph
+  },
+}
 let ctx: any = {
   svg: undefined,
   nl_g: undefined,
   mt_g: undefined,
-  width: 800,
-  height: 400,
-  leftRatio: 0.4,  // split the view into two parts with a left ratio
-  xScale: d3.scaleBand().paddingOuter(0).paddingInner(0.1).align(0.5),
+  width: 800, // the width of the svg (default 800, to be determined when run)
+  height: 400, // the height of the svg (default 400, to be determined when run)
+  leftRatio: 0.4,  // split the view into two parts (left: nodelink, right: matrix) with a left ratio
+  xScale: d3.scaleBand().paddingOuter(0).paddingInner(0.1).align(0.5), // the scale for the square
   cScale: (d:number) => {
-    return d===0?'white':d3.interpolateYlGnBu(Math.min(1, d/20))
+    return d===0?'white':d3.interpolateYlGnBu(Math.min(1, d / 20))
   },
 }
 
@@ -36,8 +42,8 @@ let setupCanvas = function (svgid: string) {
   let svg = d3.select(`#${svgid}`)
   svg.style('width', '100%')
     .style('height', '80vh')
-  ctx.width = $(`#${svgid}`).width()
-  ctx.height = $(`#${svgid}`).height()
+  ctx.width = $(`#${svgid}`).width() || ctx.width
+  ctx.height = $(`#${svgid}`).height() || ctx.height
   ctx.svg = svg
   let mtCanvas = svg.append('g').classed('mt-canvas', true)
     .attr('transform', `translate(${ctx.width * ctx.leftRatio}, 0)`)
@@ -79,9 +85,11 @@ let createOrder = function (nodes: Node[]) {
 }
 
 /**
-* Filter the subgraph of professors of CSE Dept.
+* Filter the subgraph of professors from CSE Dept.
+* @param data a Graph object
+* @returns the filtered subgraph
 */
-let fetchSubgraph: Graph = function (data: Graph) {
+let fetchSubgraph = function (data: Graph): Graph {
   let validNodes:Node[] = data.nodes.filter((node: Node) => node.dept === 'CSE')
   let validIds = new Set(validNodes.map((node: Node) => node.id))
   let validEdges = data.edges.filter((edge: Link) => validIds.has(edge.source) && validIds.has(edge.target))
@@ -92,10 +100,10 @@ let fetchSubgraph: Graph = function (data: Graph) {
   })
   validEdges.forEach((link: Link) => {
     let sum = link.publications.length
-    validNodes[info.idMap.get(link.source)].degree += sum
-    validNodes[info.idMap.get(link.target)].degree += sum
-    validNodes[info.idMap.get(link.source)].collaborator += 1
-    validNodes[info.idMap.get(link.target)].collaborator += 1
+    validNodes[info.idMap.get(link.source)].degree! += sum
+    validNodes[info.idMap.get(link.target)].degree! += sum
+    validNodes[info.idMap.get(link.source)].collaborator! += 1
+    validNodes[info.idMap.get(link.target)].collaborator! += 1
   })
   let subgraph = {
     'nodes': validNodes,
@@ -153,7 +161,7 @@ let plotNodelink = function (graph: Graph, nlcanvas: any) {
       return `node-ele n_${info.idMap.get(d.id)}`
     })
     .classed('node-ele', true)
-    .attr('r', (d: Node) => nl.nodeSizeTransform(d.collaborator))
+    .attr('r', (d: Node) => nl.nodeSizeTransform(d.collaborator!))
     .attr('cx', (d: Node) => d.x)
     .attr('cy', (d: Node) => d.y)
     .style('fill', nl.fillNodeColor)
@@ -240,15 +248,13 @@ let createMatrixLegend = function (height :number, width :number) {
     .attr('dy', slotWidth * 0.8)
     .style('font-size', '0.4rem')
     .text((d: number) => d)
-
-  console.log('hello')
 }
 
 let createMatrix = function (graph: Graph, gstr: string='mt-canvas') {
   let [width, height] = setupMatrixCanvas(gstr)
-
   let matrix = nl.getMatrixData(graph, info.idMap)
   let order = info.order.normal
+
   ctx.xScale = d3.scaleBand()
     .domain(order.map((v: number) => v.toString()))
     .range([0, width])
@@ -313,7 +319,8 @@ let createMatrix = function (graph: Graph, gstr: string='mt-canvas') {
   createMatrixLegend(height, width)
 }
 
-export let reorderMatrix = function (mode: string) {
+let reorderMatrix = function (mode: string) {
+  if(!ctx.mt_g) return
   let order = info.order[mode]
   let n = ctx.xScale.domain().length
   ctx.xScale.domain(order.map((v: number) => v.toString()))
@@ -358,10 +365,10 @@ export let reorderMatrix = function (mode: string) {
 
 /**
  * Initialize the canvas and data.
- * @param {Graph} data the parsed data from json, lists of nodes and edges
- * @param {string} svgid the id of the svg element
+ * @param data the parsed data from json, lists of nodes and edges
+ * @param svgid the id of the svg element
  */
-export let init = function (data: unknown, svgid: string) {
+ let init = function (data: unknown, svgid: string) {
   let converted = data as Graph
   let subgraph = fetchSubgraph(converted)
   // let subgraph = data as Graph // for development only
@@ -370,4 +377,9 @@ export let init = function (data: unknown, svgid: string) {
   setupCanvas(svgid)
   createMatrix(subgraph)
   createNodelink(subgraph)
+}
+
+export {
+  init,
+  reorderMatrix
 }

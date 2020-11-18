@@ -1,20 +1,20 @@
 from pymongo import MongoClient
-
+from datetime import timedelta
 _db_port = 27017
 
 class MongoCache:
-    def __init__(self, client=None, expires=timedelta(days=30)):
+    def __init__(self, expires=timedelta(hours=1)):
         self.client = MongoClient('localhost', _db_port)
         self.db = self.client.cache
-        self.db.webpage.create_index('timestamp', expireAfterSeconds=expires.total_seconds())
+        self.db.sheet.create_index('timestamp', expireAfterSeconds=expires.total_seconds())
 
-    def __getitem__(self, url):
-        record = self.db.webpage.find_one({'_id': url})
+    def __getitem__(self, code):
+        record = self.db.sheet.find_one({'_id': code})
         if record:
             return record['result']
         else:
             raise KeyError(url + 'does not exist')
 
-    def __setitem__(self, url, result):
+    def __setitem__(self, code, result):
         record = {'result': result, 'timestamp': datetime.utcnow()}
-        self.db.webpage.update({'_id': url}, {'$set': record}, upsert=True)
+        self.db.sheet.update({'_id': code}, {'$set': result}, upsert=True)

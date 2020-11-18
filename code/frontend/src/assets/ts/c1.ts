@@ -1,22 +1,29 @@
 /* eslint-disable */
+
+/**
+ * This is the doc comment for c1.ts
+ * It supports to plot a simple heatmap.
+ * @packageDocumentation
+ */
+
 import * as d3 from "d3"
 import $ from 'jquery'
-import {Cell} from './types'
+import { Cell } from './types'
 
 enum Mode {
   maximum,
   minimum
 }
 
-let mode:Mode = Mode.maximum
-let width:any = 800
-let height:any = 300
-let canvas:any
-let xScale:any
-let yScale:any
-let colorScale_max:any
-let colorScale_min:any
-let colorScale:any
+let mode: Mode = Mode.maximum
+let width: any = 800
+let height: any = 300
+let canvas: any
+let xScale: any
+let yScale: any
+let colorScale_max: any
+let colorScale_min: any
+let colorScale: any
 const legendRatio = 12/14
 const declaredWidth = '95vw'
 const declaredHeight = '80vh'
@@ -228,28 +235,27 @@ let plotBars = function (canvas: any, data: any) {
     .style('fill', fillBar)
     .style('stroke-width', '0')
     .style('stroke', '#b8b8ab')
-    .on('mouseover', function(e: MouseEvent, d: Cell) {
+    .on('mouseover', function(this: SVGRectElement, e: MouseEvent, d: Cell) {
       let tooltip = d3.select('#c1').select('.tooltip')
         .style('visibility', 'visible')
         .html(`Time: ${d.year}-${String(d.month + 1).padStart(2, '0')} &nbsp;&nbsp;  max: ${d.maximum} &nbsp;&nbsp;  min: ${d.minimum} `)
         .style('left', getXpos(e.pageX) + 'px')
         .style('top', e.pageY + 'px')
-      d3.select(this)
+      d3.select(this as SVGRectElement)
         .style('stroke-width', 2)
     })
-    .on('mouseout', function() {
+    .on('mouseout', function(this: SVGRectElement) {
       d3.select('#c1').select('.tooltip')
         .style('visibility', 'hidden')
       d3.select(this)
         .style('stroke-width', 0)
     })
-
 }
 
 /**
  * Initialize the canvas and data.
- * @param {unknown} obj the parsed data from csv, a list of objects
- * @param {string} svgid the id of the svg element
+ * @param obj the parsed data from csv, a list of objects
+ * @param svgid the id of the svg element
  */
 export let init = function (obj:any, svgid:string) {
   let bars = dataPreprocessing(obj)
@@ -264,6 +270,7 @@ export let init = function (obj:any, svgid:string) {
  * Switch the view of min_temperture and max_temperature.
  */
 export let changeMode = function () {
+  if (!canvas) return
   mode = mode === Mode.minimum? Mode.maximum : Mode.minimum
   d3.selectAll('.bar')
     .style('fill', fillBar)

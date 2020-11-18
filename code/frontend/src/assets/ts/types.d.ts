@@ -32,10 +32,20 @@ interface: Cell {
   minlist?: number[],
   maxlist?:number[]
 }
+interface: TimeSeries {
+  time: object,
+  value: number
+}
+interface: TimeSeriesRaw {
+  time: string,
+  value: string
+}
 export {
   Node,
   Link,
   MatrixCell,
   Cell,
-  Graph
+  Graph,
+  TimeSeries,
+  TimeSeriesRaw
 }

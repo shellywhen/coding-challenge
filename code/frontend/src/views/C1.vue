@@ -3,7 +3,7 @@
     <div class="tooltip">
     </div>
   <div class="left-wrapper">
-    <span class="title"> Monthly Temperature of Hong Kong</span>
+    <span class="title"> Monthly Temperature of Hong Kong </span>
     <el-radio v-model="radio" label="1">Max</el-radio>
     <el-radio v-model="radio" label="2">Min</el-radio>
   </div>
