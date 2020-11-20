@@ -29,8 +29,8 @@ def _config():
 @app.route('/query/<code>', methods=['GET'])
 def _query(code):
     print(code)
-    dataService.query(code)
-    return json.dumps(f"Received!")
+    data = dataService.query(code)
+    return json.dumps(data)
 
 
 # @app.route('/write', methods=['POST'])

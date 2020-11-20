@@ -1,11 +1,12 @@
-# -*- coding: utf-8 -*-
-from cacheService import MongoCache
+# -* coding: utf-8 -*-
+from .cacheService import MongoCache
 import requests
+from datetime import datetime
+import time
 
 api = "O6K9YK73WIFU2L6B"
 url = "https://www.alphavantage.co/query"
 
-# https://www.jianshu.com/p/8c64d039faf4
 # Alpha vintage API key: O6K9YK73WIFU2L6B
 
 class DataService(object):
@@ -13,23 +14,35 @@ class DataService(object):
         self.cacheService = MongoCache()
         return
 
+    def makeRequest(self, code, func, identifier=None, addon=''):
+        # it is only allowed to make 5 request per minute and 500 in a day.
+        requestUrl = f"{url}?symbol={code}&function={func}{addon}&apikey={api}"
+        start = datetime.now()
+        data = requests.get(requestUrl).json()
+        if 'Note' in data:
+            time.sleep(60)
+            data = requests.get(requestUrl).json()
+        end = datetime.now()
+        print(requestUrl, ' ',  (end - start).total_seconds(), 's')
+        if identifier is None:
+            return data
+        return data[identifier]
+
     def queryFromApi(self, code):
         """Request data from web API.
         """
-        res = requests.get(getQueryUrl(code, 'OVERVIEW')).json()
-        overview = getOverview(res)
-        daily_5min = requests.get(getQueryUrl(code, 'TIME_SERIES_INTRADAY', '&interval=5min')).json()['Time Series (5min)']
-        daily_15min = requests.get(getQueryUrl(code, 'TIME_SERIES_INTRADAY', '&interval=30min')).json()['Time Series (15min)']
-        daily_60min = requests.get(getQueryUrl(code, 'TIME_SERIES_INTRADAY', '&interval=30min')).json()['Time Series (60min)']
-        daily = requests.get(getQueryUrl(code, 'TIME_SERIES_DAILY')).json()['Daily Time Series']
-        weekly = requests.get(getQueryUrl(code,'TIME_SERIES_WEEKLY')).json()['Weekly Time Series']
-        monthly = requests.get(getQueryUrl(code, 'TIME_SERIES_MONTHLY')).json()['Monthly Time Series']
-        time_series = getDataSeries(daily_5min, daily_15min, daily_60min, daily, weekly, monthly)
-        meta = getMeta(daily_5min, daily)
+        raw = self.makeRequest(code, 'OVERVIEW')
+        overview = getOverview(raw)
+        daily_5min = self.makeRequest(code, 'TIME_SERIES_INTRADAY', 'Time Series (5min)', '&interval=5min')
+        daily_60min = self.makeRequest(code, 'TIME_SERIES_INTRADAY', 'Time Series (60min)', '&interval=60min')
+        daily = self.makeRequest(code, 'TIME_SERIES_DAILY', 'Time Series (Daily)')
+        weekly = self.makeRequest(code, 'TIME_SERIES_WEEKLY', 'Weekly Time Series')
+        time_series = getDataSeries(daily_5min, daily_60min, daily, weekly)
+        meta = getMeta(time_series['1d'], time_series['5d'])
         return {
             'meta': meta,           # basic metadata today
-            'data': time_series,  # wrapped data for visualization
-            'overview': overview  # the general information about the stock
+            'data': time_series,    # wrapped data for visualization
+            'overview': overview    # the general information about the stock
         }
 
     def query(self, code):
@@ -37,20 +50,30 @@ class DataService(object):
         If the data have not been cached in local dataset, request data from web service.
         :code: the code that the user give.
         """
-        data  = self.queryFromApi(code)
-        # try:
-        #     data = self.cacheService[code]
-        # except:
-        #     data  = self.queryFromApi(code)
-        #     self.cacheService[code] = data
+        try:
+            data = self.cacheService[code]
+            print('Loaded data from DB.')
+        except:
+            data  = self.queryFromApi(code)
+            self.cacheService[code] = data
+            print('Stored Data into DB.')
         return data
 
 
-def getQueryUrl(code, funcname, addition=''):
-    return f"{url}?symbol={code}&function={funcname}{addition}&apikey={api}"
-
-def getMeta(daily_5min, daily):
-    meta = {}
+def getMeta(code, daily_5min):
+    latestRecordDate = daily_5min[0]['time'][0:10]
+    allday = []
+    for d in daily_5min:
+        if d['time'][0:10] == latestRecordDate:
+            allday.append(d['value'])
+    meta = {
+        'timestr': daily_5min[0]['time'],
+        'low': min(allday),
+        'open': allday[-1],
+        'code': code,
+        'current': allday[0],
+        'high': max(allday)
+    }
     return meta
 
 def getOverview(raw):
@@ -71,36 +94,30 @@ def getOverview(raw):
 def getItem(t, d, time_addon=''):
     return {'time': t + time_addon, 'value': d['4. close']}
 
-def getDataSeries(daily_5min, daily_15min, daily_60min, daily, weekly, monthly):
+def getDataSeries(daily_5min, daily_60min, daily, weekly):
     res = {
         '1d': [],
         '5d': [],
         '1m': [],
         '6m': [],
-        'YTD': [],
         '1y': [],
-        '5y': []
     }
-    for k, d in enumerate(daily_5min):
+    raw_5d = []
+    for i, (k, d) in enumerate(daily_5min.items()):
         res['1d'].append(getItem(k, d))
-    for k, d in enumerate(daily_15min):
-        res['1d'].append(getItem(k, d))
-    for i, k, d in enumerate(daily_60min):
-        res['5d'].append(getItem(k, d))
+    for i, (k, d) in enumerate(daily_60min.items()):
+        raw_5d.append(getItem(k, d))
     for i, (k, d) in enumerate(daily.items()):
         if i < 5:
-            res['5d'].append(getItem(k, d, ' 00:00:00'))
+            raw_5d.append(getItem(k, d, ' 00:00:00'))
         if i < 31:
-            res['1m'].append(getItem(k, d))
+            res['1m'].append(getItem(k, d, ' 00:00:00'))
     for i, (k, d) in enumerate(weekly.items()):
         if i < 26:
-            res['6m'].append(getItem(k, d))
+            res['6m'].append(getItem(k, d, ' 00:00:00'))
         if i < 53:
-            res['1y'].append(getItem(k, d))
-    for i, (k, d) in enumerate(monthly):
-        if i > 60:
-            break
-        res['5y'].append(getItem(k, d))
+            res['1y'].append(getItem(k, d, ' 00:00:00'))
+    res['5d'] = sorted(raw_5d, key=lambda k: k['time']) 
     return res  
 
 if __name__ == '__main__':

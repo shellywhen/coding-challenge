@@ -9,11 +9,11 @@
 import * as d3 from 'd3'
 import $ from 'jquery'
 import { TimeSeries, TimeSeriesRaw } from './types'
-
+enum StockSituation { high, low }
 const PADDING_RATIO = {
   top: 0.05,
   bottom: 0.1,
-  left: 0.05,
+  left: 0.1,
   right: 0
 }
 const RADIUS = 3
@@ -33,11 +33,13 @@ export class PageMeta {
   private svg: any
   private extremes: any
   private dateFormat: string
+  private status: StockSituation
 
-  constructor(datalist: any, svgid: string, dateFormat: string = '%Y-%m-%d') {
+  constructor(datalist: any, svgid: string, status: StockSituation, dateFormat: string = '%Y-%m-%d %H:%M:%S') {
     this.svgid = svgid
     this.svg = d3.select(`#${svgid}`)
     this.dateFormat = dateFormat
+    this.status = status
     this.datalist = preprocessSeries(datalist, dateFormat)
     let ymax = parseFloat(d3.max(datalist, (v: TimeSeries) => v.value)!)
     let ymin = parseFloat(d3.min(datalist, (v: TimeSeries) => v.value)!)
@@ -55,7 +57,7 @@ export class PageMeta {
   plot() {
     prepareCanvas(this.svgid)
     plotAxis(this.xScale, this.yScale, this.svgid)
-    plotLineChart(this.datalist, this.xScale, this.yScale, this.svgid)
+    plotLineChart(this.datalist, this.xScale, this.yScale, this.svgid, this.status)
   }
 }
 
@@ -76,7 +78,7 @@ let roundValue = function (start: number, end: number): [number, number] {
   return [roundStart, roundEnd]
 }
 
-let preprocessSeries = function (data: TimeSeriesRaw[], timeFormat: string = '%Y-%m-%d'): TimeSeries[] {
+let preprocessSeries = function (data: TimeSeriesRaw[], timeFormat: string = '%Y-%m-%d %H:%M:%S'): TimeSeries[] {
   let val = data.map((v: TimeSeriesRaw) => {
     return {
       time: d3.timeParse(timeFormat)(v.time),
@@ -137,7 +139,8 @@ let plotAxis = function (xScale: any, yScale: any, svgid: string) {
   yg.select('.domain').remove()
 }
 
-let plotLineChart = function (datalist: TimeSeries[], xScale: any, yScale: any, svgid: string) {
+let plotLineChart = function (datalist: TimeSeries[], xScale: any, yScale: any, svgid: string, status: StockSituation) {
+  let colorScheme = status == StockSituation.high ? 'green' : 'red' 
   let lineGenerator = d3.line()
     .x((d: number[]) => d[0])
     .y((d: number[]) => d[1])
@@ -150,15 +153,18 @@ let plotLineChart = function (datalist: TimeSeries[], xScale: any, yScale: any, 
   canvas.append('path')
     .attr('d', lineGenerator(bgdots) || '')
     .classed('bg', true)
+    .attr('data-type', colorScheme)
   canvas.append('path')
     .attr('d', lineGenerator(dots) || '')
     .classed('main-path', true)
+    .attr('data-type', colorScheme)
   let focus = canvas.append('circle')
     .classed('focus-point', true)
     .datum(datalist[datalist.length - 1])
     .attr('cx', (d: TimeSeries) => xScale(d.time))
     .attr('cy', (d: TimeSeries) => yScale(d.value))
     .attr('r', 2 * RADIUS)
+    .attr('data-type', colorScheme)
   let line = canvas.append('line')
     .classed('mouseline', true)
     .attr('x1', -1)
@@ -185,11 +191,11 @@ let plotLineChart = function (datalist: TimeSeries[], xScale: any, yScale: any, 
           let tmp = focus.node()!.getBoundingClientRect()
           let absX = tmp.left
           let absY = tmp.top
-          let offset = ROUND_Y_RATIO * height * 2
+          let offset = ROUND_Y_RATIO * height * 3
           d3.select('.tooltip')
             .style('left', `${absX}px`)
             .style('visibility', 'visible')
-            .style('top', `${absY > midPos ? absPos.top + offset : absPos.bottom + offset}px`)
+            .style('top', `${absY > midPos ? absPos.top - offset : absPos.bottom - offset}px`)
             .text(v.value)
           return
         }
@@ -201,10 +207,10 @@ let plotLineChart = function (datalist: TimeSeries[], xScale: any, yScale: any, 
 @param fold data for the canvas
 @param svgid svg id for the canvas
 */
-export let init = function (fold: TimeSeriesRaw[], svgid: string): void {
+export let init = function (fold: TimeSeriesRaw[], svgid: string, status: StockSituation): void {
   let svg = d3.select(`#${svgid}`).html('') // clear the content
   let canvasid = prepareCanvas(svgid)
-  let ele = new PageMeta(fold, svgid)
+  let ele = new PageMeta(fold, svgid, status)
   ele.plot()
 }
 

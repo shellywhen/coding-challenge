@@ -1,36 +1,37 @@
-# HKUST VisLab Coding Challenge
+# Readme
 
-Welcome to the coding challenge of VisLab! We have set a couple of challenges for you:
+Direct Visit: [shellywhen.github.io/coding-challenge](https://shellywhen.github.io/coding-challenge/)
 
-## Level 1 & 2 (Basic): [Link](./level1.md)
-HK Temperature Heatmap
-![level1](./level1.png)
+\*Note that challenge 6 requires data server.
 
-## Level 3 (Intermediate): [Link](./level3.md)
-HKUST Co-author Graph
-![level3](./level3.png)
+## Local Setup
 
-## Level 4 and above (Optional)
+### Dependency
 
-The followings challenges will take more time to complete and include an open-end bonus part.
+- MongoDb
+- Python 3+
+- npm
 
-Please take only **ONE** challenge at maximum.
+### Backend
 
-### Level 4 (Data Analysis): [Link](./level4.md)
-Spotify's Worldwide Daily Song Ranking
+```sh
+cd code/backend
+pip3 install -r requirements.txt
+python3 run.py
+```
 
-### Level 5 (Machine Learning specific): [Link](./level5.md)
-Kaggle competition: Dogs vs. Cats
+The server will be run at `localhost:12050`.
 
-### Level 6 (Fullstack Web Application): [Link](./level6.md)
-Stock Market Chart
+It will use MongoDb at `localhost:27017`.
 
-## Grading:
-1. Correctness (50%)
-2. Maintainability (50%)
+### Frontend
 
-## Submission:
+```sh
+cd code/frontend
+npm install
+npm run serve
+```
 
-Please create a github repository under your github account, and send us the URL of that repository.
+## About
 
-Happy coding!
+The repository is my entry to the [HKUST Coding Challenge](https://github.com/HKUST-VISLab/coding-challenge).

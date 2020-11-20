@@ -1,30 +1,9 @@
 /* eslint-disable */
-import Vue from 'vue'
-import VueResource from 'vue-resource'
-Vue.use(VueResource)
-
+import axios from 'axios'
 const dataServerUrl = 'http://127.0.0.1:12050/'
 const prefix = 'query/'
-const $http = (Vue as any).http
 
-/** Request data from a given url.
-@param url the link, note that to combine the params in the address
-@returns resolved data
-*/
-function get(url: string): Promise<any> {
-  return new Promise((resolve, reject) => {
-    $http.get(url).then(
-      (response: any) => {
-        console.log('promise resolve: ', response)
-        resolve(response.data)
-      },
-      (errResponse: any) => {
-        console.log('promise reject: ')
-        reject(errResponse)
-      }
-    )
-  })
-}
+const $http = axios
 
 /** Request data from host.
 @param field the postfix
@@ -46,21 +25,19 @@ function hostGet(field: string): Promise<any> {
   })
 }
 
-/** Request data from host.
-@param field the postfix
-@param payload message to be posted
-@param resolvefunc callback function after success
+/** Request data from a given url.
+@param url the link, note that to combine the params in the address
 @returns resolved data
 */
-function hostPost(field: string, payload: any, resolvefunc: any = ()=>''): Promise<any> {
+function get(url: string): Promise<any> {
   return new Promise((resolve, reject) => {
-    const url = `${dataServerUrl}/` + field
-    $http.post(url, payload).then(
+    $http.get(url).then(
       (response: any) => {
+        console.log('promise resolve: ', response)
         resolve(response.data)
-        resolvefunc()
       },
       (errResponse: any) => {
+        console.log('promise reject: ')
         reject(errResponse)
       }
     )
@@ -68,7 +45,6 @@ function hostPost(field: string, payload: any, resolvefunc: any = ()=>''): Promi
 }
 
 export default {
-  get,
-  hostPost,
-  hostGet
+  hostGet,
+  get
 }

@@ -1,11 +1,11 @@
 /* eslint-disable */
 import Vue from 'vue'
 import Vuex from 'vuex'
-import User from './modules/user'
+import Stock from './modules/stock'
 Vue.use(Vuex)
 const store = new Vuex.Store({
   modules: {
-    User
+    'Stock': Stock
   }
 })
 export default store

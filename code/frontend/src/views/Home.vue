@@ -21,6 +21,8 @@
 </template>
 
 <style lang="sass" scoped>
+.bigtitle
+  margin-top: 3vh
 .block
   margin-top: 5vh
 .el-carousel__item

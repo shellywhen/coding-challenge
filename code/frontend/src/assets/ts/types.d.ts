@@ -1,3 +1,4 @@
+/* eslint-disable */
 interface Node {
   label?: string,
   dept?: string,
@@ -24,7 +25,7 @@ interface MatrixCell {
   yid: number,
   publications: number
 }
-interface: Cell {
+interface Cell {
   month: number,
   year: number,
   maximum: number,
@@ -32,11 +33,11 @@ interface: Cell {
   minlist?: number[],
   maxlist?:number[]
 }
-interface: TimeSeries {
+interface TimeSeries {
   time: object,
   value: number
 }
-interface: TimeSeriesRaw {
+interface TimeSeriesRaw {
   time: string,
   value: string
 }
@@ -47,5 +48,5 @@ export {
   Cell,
   Graph,
   TimeSeries,
-  TimeSeriesRaw
+  TimeSeriesRaw,
 }

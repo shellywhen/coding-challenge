@@ -25,7 +25,12 @@
             <el-input size="mini" v-model="code" placeholder="Stock Code">
             </el-input>
             <!-- <AutocompleteBar></AutocompleteBar> -->
-          </div>
+            <div class=suggestions>
+              <div v-for="item in suggestions" :key="item">
+                {{ item }}
+              </div>
+            </div>
+              </div>
         </el-col>
         <el-col :span="8">
           <div class="grid-content bg-purple">
@@ -33,10 +38,22 @@
           </div>
         </el-col>
       </el-row>
+      <div class="overview mask">
+        <el-divider content-position="right">Overview</el-divider>
+        <h2>{{ overview.name }} ({{overview.exchange}}: {{ overview.symbol }})</h2>
+          <div>
+            <span> {{ overview.sector }}</span>
+            <el-divider direction="vertical"></el-divider>
+            <span>{{overview.industry}}</span>
+          </div>
+         <p><b>Introduction</b>: {{ overview.description }}</p>
+         <p><b>Total Employees</b>: {{ overview.employees }} </p>
+         <p><b>Address</b>: {{ overview.address }} </p>
+      </div>
     </el-col>
     <el-col :span="14" style="margin-top: 8vh">
       <div class="block-container">
-        <div class="mask active">
+        <div class="mask">
           <div class="meta">
             <el-row>
               <el-col :span="6">
@@ -47,7 +64,7 @@
               </el-col>
             </el-row>
             <div class="flex">
-              <div class="time">{{meta.timestamp}}</div>
+              <div class="time">{{"—" + meta.timestr}}</div>
             </div>
           </div>
           <el-tabs v-model="activeSvg" @tab-click="renderSvg">
@@ -82,8 +99,8 @@
     </linearGradient>
     <linearGradient id="gradient-vertical-green" x2="0" y2="1">
       <stop offset="0%" stop-color="var(--color-stop-1)" />
-      <stop offset="20%" stop-color="var(--color-stop-2)" />
-      <stop offset="40%" stop-color="var(--color-stop-3)" />
+      <stop offset="40%" stop-color="var(--color-stop-2)" />
+      <stop offset="65%" stop-color="var(--color-stop-3)" />
       <stop offset="75%" stop-color="var(--color-stop-4)" />
       <stop offset="100%" stop-color="var(--color-stop-5)" />
     </linearGradient>
@@ -97,19 +114,34 @@
 /* eslint-disable */
 // reference---https://blog.logrocket.com/how-to-write-a-vue-js-app-completely-in-typescript/
 import * as d3 from 'd3'
-import * as utils from '@/assets/ts/c6.ts'
-import dataService from "@/service/dataService.ts"
+import * as utils from '@/assets/ts/c6'
+import dataService from "@/service/dataService"
 import AutocompleteBar from '@/components/AutocompleteBar.vue'
 import { Component, Vue, Watch, Prop } from 'vue-property-decorator'
 import { namespace } from 'vuex-class'
-const user = namespace('user')
+enum StockSituation { high, low }
+const stock = namespace('Stock')
+const api = "https://www.alphavantage.co/query"
+const apikey = "O6K9YK73WIFU2L6B"
+
 interface Meta {
   high: number,
-    low: number,
-    open: number,
-    timestamp: string,
-    code: string,
-    current: number
+  low: number,
+  open: number,
+  timestr: string,
+  code: string,
+  current: number
+}
+interface Board {
+  symbol: string,
+  name: string,
+  description: string,
+  exchange: string,
+  currency: string,
+  sector: string,
+  industry: string,
+  address: string,
+  employees: string
 }
 @Component({
   name: 'C6',
@@ -128,6 +160,8 @@ export default class C6 extends Vue {
   private radio: string = '1'
   private code: string = ''
   private activeSvg: string = '1d'
+  private possibilities: string[] = []
+  private suggestions: string[] = []
   private svgs: Array < object > = [{
     name: '1 day',
     id: '1d'
@@ -141,27 +175,18 @@ export default class C6 extends Vue {
     name: '6 months',
     id: '6m'
   }, {
-    name: 'YTD',
-    id: 'ytd'
-  }, {
     name: '1 year',
     id: '1y'
-  }, {
-    name: '5 years',
-    id: '5y'
-  }, {
-    name: 'MAX',
-    id: 'max'
   }]
   private tags: Array < string > = ['open', 'high', 'low']
-  private meta: Meta = {
-    high: -1,
-    low: -1,
-    open: -1,
-    timestamp: 'Loading',
-    code: '?',
-    current: 0
-  }
+  @stock.State
+  public meta!: Meta
+  @stock.State
+  public record!: any
+  @stock.State
+  public overview:any
+  @stock.Action
+  public updateStock: (a:any)=>void
   get comparison(): string {
     let delta = this.meta.current - this.meta.open
     let symbol = delta > 0 ? '+' : (delta < 0 ? '-' : ' ')
@@ -183,39 +208,50 @@ export default class C6 extends Vue {
     deep: true
   })
   codeChanged(newv: string, oldv: string) {
-    console.log(newv, oldv)
+    if(newv.length < 4) {
+      this.possibilities = []
+      this.suggestions = []
+      return
+    }
+    let url = `${api}?function=SYMBOL_SEARCH&keywords=${newv}&apikey=${apikey}`
+    dataService.get(url)
+      .then((res: any) => {
+        this.suggestions = res.bestMatches.map((v: any) => {
+          return `${v['1. symbol']} (${v['2. name']})`
+        })
+        this.possibilities = res.bestMatches.map((v: any) => `${v['1. symbol']}`)
+    })
+      .catch(err => { console.log(err) })
   }
-  @user.State
-  public name!: string
-  @user.Getter
-  public nameUpperCase!: string
-  @user.Action
-  public updateName!: (newName: string) => void
-
+  public plot(): void {
+    let status = this.meta.current - this.meta.open > 0 ? StockSituation.high : StockSituation.low
+    this.svgs.forEach((v: object) => {
+      utils.init(this.record[v.id], `svg_${v.id}`, status)
+    })
+    d3.selectAll('.mask').classed('active', true)
+  }
   public launch(): void {
     console.log(this.code, 'press button')
-    dataService.hostGet(this.code)
+    if (!this.possibilities.includes(this.code.toUpperCase())) {
+      alert('The code you are requesting does not exist :-(.')
+      return
+    }
+    this.possibilities = []
+    this.suggestions = []
+    let self = this
+    dataService.hostGet(this.code).then((data)=>{
+      self.updateStock(data)
+      self.plot()
+    }, (rej) => {
+      alert('Failed')
+    })
   }
   public renderSvg(): void {
     d3.select('.tooltip').style('visibility', 'hidden')
-    console.log('render', this.activeSvg)
   }
   mounted() {
     utils.initializeParameter('svg_1d')
-    let toy = [{
-      time: '2020-01-01',
-      value: 3
-    }, {
-      time: '2020-01-02',
-      value: 1
-    }, {
-      time: '2020-01-03',
-      value: 8
-    }, {
-      time: '2020-01-04',
-      value: 5
-    }]
-    utils.init(toy, 'svg_1d')
+    
   }
 }
 </script>
@@ -224,7 +260,8 @@ export default class C6 extends Vue {
   $darkgray: #717070
   $gray: #a8a8a8
   $lightgray: #ececec
-  $main: #fb4040
+  $mainred: #fb4040
+  $maingreen: #01814f
   #gradient-vertical-red
     --color-stop-1: #ec2929
     --color-stop-2: #f9a199
@@ -237,12 +274,16 @@ export default class C6 extends Vue {
     --color-stop-3: #c6ffd7
     --color-stop-4: #eaffe9
     --color-stop-5: #ffffff
-
   #c6
     padding: 2vh 3vw
     .title-container
       text-align: left
       margin-bottom: 1vh
+    .suggestions
+      text-align: left
+    .overview
+      p
+        text-align: left
     .tooltip
       background-color: white
       border-radius: 5px
@@ -283,15 +324,25 @@ export default class C6 extends Vue {
         .tick-text
           fill: $darkgray
         .bg
-          fill: url(#gradient-vertical-red)
           opacity: 0.5
+          &[data-type=red]
+            fill: url(#gradient-vertical-red)
+          &[data-type=green]
+            fill: url(#gradient-vertical-green)
         .main-path
-          stroke: $main
           stroke-width: 2
           fill: none
+          &[data-type=red]
+            stroke: $mainred
+          &[data-type=green]
+            stroke: $maingreen
         .focus-point
           stroke: none
-          fill: $main
+          &[data-type=red]
+            fill: $mainred
+          &[data-type=green]
+            fill: $maingreen
+        
         .mouseline
           stroke-dasharray: 4
           stroke: $darkgray
