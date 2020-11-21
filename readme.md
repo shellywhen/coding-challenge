@@ -2,11 +2,11 @@
 
 Direct Visit: [shellywhen.github.io/coding-challenge](https://shellywhen.github.io/coding-challenge/)
 
-\*Note that challenge 6 requires data server.
+\*Note that challenge 6 requires a data server.
 
 ## Local Setup
 
-### Dependency
+### Dependencies
 
 - MongoDb
 - Python 3+
