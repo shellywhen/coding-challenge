@@ -24,12 +24,6 @@
           <div class="grid-content bg-purple">
             <el-input size="mini" v-model="code" placeholder="Stock Code">
             </el-input>
-            <!-- <AutocompleteBar></AutocompleteBar> -->
-            <div class=suggestions>
-              <div v-for="item in suggestions" :key="item">
-                {{ item }}
-              </div>
-            </div>
               </div>
         </el-col>
         <el-col :span="8">
@@ -38,6 +32,11 @@
           </div>
         </el-col>
       </el-row>
+      <div class=suggestions>
+              <div v-for="item in suggestions" :key="item">
+                {{ item }}
+              </div>
+      </div>
       <div class="overview mask">
         <el-divider content-position="right">Overview</el-divider>
         <h2>{{ overview.name }} ({{overview.exchange}}: {{ overview.symbol }})</h2>
@@ -67,7 +66,7 @@
               <div class="time">{{"—" + meta.timestr}}</div>
             </div>
           </div>
-          <el-tabs v-model="activeSvg" @tab-click="renderSvg">
+          <el-tabs v-model="activeSvg">
             <el-tab-pane v-for="item in svgs" :key="item.id" :label="item.name" :name="item.id">
               <div class="svg-container">
                 <svg class="stock" :id="'svg_' + item.id"></svg>
@@ -116,7 +115,6 @@
 import * as d3 from 'd3'
 import * as utils from '@/assets/ts/c6'
 import dataService from "@/service/dataService"
-import AutocompleteBar from '@/components/AutocompleteBar.vue'
 import { Component, Vue, Watch, Prop } from 'vue-property-decorator'
 import { namespace } from 'vuex-class'
 enum StockSituation { high, low }
@@ -151,9 +149,6 @@ interface Board {
       value = value.toString()
       return value.charAt(0).toUpperCase() + value.slice(1)
     }
-  },
-  components: {
-    AutocompleteBar
   }
 })
 export default class C6 extends Vue {
@@ -182,7 +177,7 @@ export default class C6 extends Vue {
   @stock.State
   public meta!: Meta
   @stock.State
-  public record!: any
+  public record!: Board
   @stock.State
   public overview:any
   @stock.Action
@@ -207,51 +202,64 @@ export default class C6 extends Vue {
     immediate: true,
     deep: true
   })
-  codeChanged(newv: string, oldv: string) {
-    if(newv.length < 4) {
+  public codeChanged (newv: string, oldv: string): void {
+    if(newv.length < 3) {
       this.possibilities = []
       this.suggestions = []
       return
     }
-    let url = `${api}?function=SYMBOL_SEARCH&keywords=${newv}&apikey=${apikey}`
-    dataService.get(url)
-      .then((res: any) => {
-        this.suggestions = res.bestMatches.map((v: any) => {
-          return `${v['1. symbol']} (${v['2. name']})`
-        })
-        this.possibilities = res.bestMatches.map((v: any) => `${v['1. symbol']}`)
-    })
-      .catch(err => { console.log(err) })
+    this.searchSuggestions(newv)
   }
   public plot(): void {
     let status = this.meta.current - this.meta.open > 0 ? StockSituation.high : StockSituation.low
     this.svgs.forEach((v: object) => {
       utils.init(this.record[v.id], `svg_${v.id}`, status)
     })
-    d3.selectAll('.mask').classed('active', true)
+    d3.selectAll('.mask').classed('active', true)  // show the overview div & svg
   }
-  public launch(): void {
+  public searchSuggestions(partial: string): Promise<any> {
+    let url = `${api}?function=SYMBOL_SEARCH&keywords=${partial}&apikey=${apikey}`
+    return dataService.get(url)
+        .then((res: any) => {
+          if( 'bestMatches' in res) {
+            this.suggestions = res.bestMatches.map((v: any) => `${v['1. symbol']} (${v['2. name']})`)
+            this.possibilities = res.bestMatches.map((v: any) => `${v['1. symbol']}`)
+          }
+          else {
+            setTimeout( () => { 
+              let url = `${api}?function=SYMBOL_SEARCH&keywords=${partial}&apikey=${apikey}`
+              dataService.get(url).then((res: any) => {
+                this.suggestions = res.bestMatches.map((v: any) => `${v['1. symbol']} (${v['2. name']})`)
+                this.possibilities = res.bestMatches.map((v: any) => `${v['1. symbol']}`)
+              })
+            }, 60000)
+          }
+      })
+        .catch(err => { console.log(err) })
+  }
+  public getData(): Promise<any> {
+    this.possibilities = []
+    this.suggestions = []
+    return dataService.hostGet(this.code).then((data)=>{
+      this.updateStock(data)
+      this.plot()
+    }, (rej) => {
+      alert('Failed to Fetch Data')
+    })
+  }
+  public async launch(): Promise<any> {
     console.log(this.code, 'press button')
+    if (this.code.length < 3) {
+      await this.searchSuggestions(this.code)
+    }
     if (!this.possibilities.includes(this.code.toUpperCase())) {
       alert('The code you are requesting does not exist :-(.')
       return
     }
-    this.possibilities = []
-    this.suggestions = []
-    let self = this
-    dataService.hostGet(this.code).then((data)=>{
-      self.updateStock(data)
-      self.plot()
-    }, (rej) => {
-      alert('Failed')
-    })
-  }
-  public renderSvg(): void {
-    d3.select('.tooltip').style('visibility', 'hidden')
+    return this.getData()
   }
   mounted() {
     utils.initializeParameter('svg_1d')
-    
   }
 }
 </script>
@@ -281,9 +289,11 @@ export default class C6 extends Vue {
       margin-bottom: 1vh
     .suggestions
       text-align: left
+      font-size: 0.8em
     .overview
       p
         text-align: left
+      font-size: 0.8em
     .tooltip
       background-color: white
       border-radius: 5px
